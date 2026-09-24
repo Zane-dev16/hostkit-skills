@@ -8,7 +8,7 @@ license: MIT
 
 Base: `https://app.hostkit.pt/api`. Every op is GET with query params, writes included.
 
-_Baseline: zero live probes ran. **TBC** = unprobed. Reads run freely; every write needs per-action opt-in._
+_Probe baseline: reads verified live 2026-09-24 on a single-property Business key; every write below is TBC — no write has ever run. **TBC** = unprobed._
 
 ```bash
 export HOSTKIT_API_KEY="<Hostkit app → Properties → API key tab, one key per property>"
@@ -17,9 +17,10 @@ BASE=https://app.hostkit.pt/api
 
 ## Auth and ceiling
 
-- Key is property-scoped: one key per property; `addProperty` returns a NEW key — store it. Env/secret manager only, regen if exposed.
-- IP allowlist [TBC]: account-level IPv4/CIDR; empty = unrestricted, any entry = deny-by-default; IPv6 unsupported; rejected → `{"error":"IP address not allowed"}`.
-- Failure shape is the ceiling signal: `{"error":"…"}` or `{"status":"failure","error":"…"}` — inspect the payload, not the HTTP status. Auth-shaped errors [TBC]: `no/incorrect/invalid-format APIKEY`, `account expired`, `Business/Premium plan required`.
+- Key is property-scoped (verified: key sees exactly 1 property via `getProperties`). `addProperty` returns a NEW key — store it. Env/secret manager only, regen if exposed.
+- Bad key → `{"error":"invalid format for APIKEY provided"}` (verified). IP allowlist [TBC]: account-level IPv4/CIDR; empty = unrestricted, any entry = deny-by-default; IPv6 unsupported; rejected → `{"error":"IP address not allowed"}`.
+- Failure shape is the ceiling signal: `{"error":"…"}` or `{"status":"failure","error":"…"}` — inspect the payload, not the HTTP status. Auth-shaped errors [TBC]: `no/incorrect APIKEY`, `account expired`, `Business/Premium plan required`.
+- Two envelope exceptions (verified): `getInvoices` body decodes as latin-1, not UTF-8; `getLastSIBADate` returns plain text (`1970-01-01 01:00:00` = never submitted), not JSON.
 
 ## Wire conventions
 
@@ -31,9 +32,9 @@ BASE=https://app.hostkit.pt/api
 
 ## Limits and errors
 
-- Rate limit enforced, values undisclosed [TBC]. Backoff `1,2,4,8,16s` + jitter, cap retries; serialise destructive/invoicing calls. On validation error, fix params, then retry.
+- Rate limit enforced, values undisclosed [TBC]. Backoff `1,2,4,8,16s` + jitter, cap retries; serialise destructive/invoicing calls. Malformed dates are a gotcha (verified): `from_date=foo` returns `{"error":"API Internal error"}`, not a validation message. On validation error otherwise, fix params, then retry.
 - `database error` = treat as transient: verify-before-retry, never blind-retry.
-- Error shapes [TBC live, paraphrased from MCP validators]: requires ≥1 of `from_date|to_date|reservation_date`; `date_filter` needs `from_date` or `to_date`, allowed `checkin|checkout`; `from_date` max one year back. Match on the `error` field.
+- Error shapes (verified live, quote these): `missing argument: provide at least one of from_date, to_date or reservation_date`; `invalid argument date_filter (allowed values: checkin, checkout)`; `invalid argument from_date (maximum one year back in time)`; `Missing mandatory field rcode`; `unknown reservation`; `keycode not found`; `parameter doc_id is invalid` (validateSIBA with absent guest docs). Match on the `error` field.
 
 ## Properties and keycodes
 
@@ -44,7 +45,7 @@ curl -s "$BASE/getProperty?APIKEY=$HOSTKIT_API_KEY"                      # key's
 curl -s "$BASE/getKeycode?APIKEY=$HOSTKIT_API_KEY&rcode=ABC123&provider=nuki"  # provider closed enum [TBC]: nuki|homeit|ttlock|salto|omnitec|voyager|tedee|assa_abloy
 ```
 
-Done = license object returns; properties done = list resolves visible properties first try; keycode done = code payload non-empty for a known `rcode`. Take `rcode` from `getReservations` output; never invent codes. Writes [TBC, opt-in each]: `addProperty` (req `property_name,address,zip,city`, returns NEW key — store it), `updateProperty`.
+Done = license object returns; properties done = list resolves visible properties first try (verified: 1 property on a scoped key); keycode done = code payload non-empty for a known `rcode`, or exact `{"error":"keycode not found"}` when no lock is fitted (verified on an Airbnb booking). Take `rcode` from `getReservations` output; never invent codes (`unknown reservation` otherwise — verified). Writes [TBC, opt-in each]: `addProperty` (req `property_name,address,zip,city`, returns NEW key — store it), `updateProperty`.
 
 ## Reservations
 
@@ -57,7 +58,7 @@ curl -s "$BASE/getPayments?APIKEY=$HOSTKIT_API_KEY&rcode=ABC123"         # payme
 curl -s "$BASE/getOnlineCheckin?APIKEY=$HOSTKIT_API_KEY&rcode=ABC123"    # checkin link
 ```
 
-Done = every list carries a window; one-lookup resolves a known `rcode` first try. Without `date_filter`, `from_date` filters check-in and `to_date` filters check-out; `reservation_date=YYYY-MM-DD` filters creation date. `get_archived=true` searches archived INSTEAD of active; `room` is free text — echo exact strings from list output, never invent. Take `rcode` from `getReservations` output; placeholder must be replaced. Writes [TBC, opt-in each]: `addReservation` (req `rcode,check_in,check_out` + `name` or `first+last_name`; collision behaviour TBC), `updateReservation`, `cancelReservation` (moves to cancellations) vs `deleteReservation` (permanent — never use delete as cancel). Extras: `addReservationExtra` takes `extra_id|extra_name|extra_vat|extra_type(S|I|P)|extra_total` (postman `name/value` is stale); `deleteReservationExtras?rcode=` wipes ALL extras, no single delete.
+Done = every list carries a window; one-lookup resolves a known `rcode` first try (verified: Oct 2026 returned 5 Airbnb rows; Jul/Aug/Sep returned 0). Without `date_filter`, `from_date` filters check-in and `to_date` filters check-out; `reservation_date=YYYY-MM-DD` filters creation date. `get_archived=true` searches archived INSTEAD of active (verified: Oct archived 0 vs active 5). No pagination params observed; 31-day windows return fine with no truncation signal [larger windows TBC]. `room` is free text (verified: `''` on Airbnb rows) — echo exact strings from list output, never invent. Take `rcode` from `getReservations` output; placeholder must be replaced. Writes [TBC, opt-in each]: `addReservation` (req `rcode,check_in,check_out` + `name` or `first+last_name`; collision behaviour TBC), `updateReservation`, `cancelReservation` (moves to cancellations) vs `deleteReservation` (permanent — never use delete as cancel). Extras: `addReservationExtra` takes `extra_id|extra_name|extra_vat|extra_type(S|I|P)|extra_total` (postman `name/value` is stale); `deleteReservationExtras?rcode=` wipes ALL extras, no single delete.
 
 ## Guests and SIBA
 
@@ -72,7 +73,7 @@ curl -s "$BASE/getLastSIBADate" --get --data-urlencode "APIKEY=$HOSTKIT_API_KEY"
 
 ```bash
 # Unix window: date_start=$(date -d '2026-09-01' +%s); date_end=$(date -d '2026-09-30' +%s)  # Linux; macOS: date -j -f '%Y-%m-%d' '2026-09-01' +%s (1756684800→1759190400)
-curl -s "$BASE/getInvoices?APIKEY=$HOSTKIT_API_KEY&date_start=1756684800&date_end=1759190400"  # window-every-list; both required [TBC]; omit invoicing_nif for all, never copy 123456789 — copy exact NIF from prior list output
+curl -s "$BASE/getInvoices?APIKEY=$HOSTKIT_API_KEY&date_start=1756684800&date_end=1759190400"  # window-every-list; both required [TBC]; omit invoicing_nif for all, never copy 123456789 — copy exact NIF from prior list output. Reads verified: year-wide returned 55 rows, all invoice_type=FR, closed=1, series=AL2026, date = unix string; decode body as latin-1. `doc_type=BOGUS` on an empty window returns `[]`, not a validation error (verified) — allowed-values text stays TBC.
 curl -s "$BASE/getReservationInvoices?APIKEY=$HOSTKIT_API_KEY&rcode=ABC123"  # requires rcode; opt invoicing_nif
 curl -s "$BASE/getReceipts?APIKEY=$HOSTKIT_API_KEY&date_start=1756684800&date_end=1759190400"      # same filters minus doc_type/source/show_property
 curl -s "$BASE/getCreditNotes?APIKEY=$HOSTKIT_API_KEY&date_start=1756684800&date_end=1759190400"   # receipt filters + opt invoice_type(FR|FT)
