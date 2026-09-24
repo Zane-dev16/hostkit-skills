@@ -1,14 +1,15 @@
 ---
 name: hostkit
-description: "Work with the Hostkit API. Use for any Hostkit call: auth, properties, keycodes, reservations, guests, SIBA, invoices, receipts, credit notes, SAFT, expenses."
+description: "Work with the Hostkit API. Use for any Hostkit read: auth, properties, keycodes, reservations, guests, SIBA, invoices, receipts, credit notes, SAFT, expenses."
 license: MIT
 ---
+> Read-only build: GET requests only. Refuse reservation/guest/invoicing writes and SIBA sends; tell the user which access the task needs.
 
 # Hostkit
 
 Base: `https://app.hostkit.pt/api`. Every op is GET with query params, writes included.
 
-_Probe baseline: reads verified live 2026-09-24 on a single-property Business key; every write below is TBC — no write has ever run. **TBC** = unprobed._
+_Probe baseline: reads verified live 2026-09-24 on a single-property Business key; this build contains no write examples — see the full-access build for those (all TBC). **TBC** = unprobed._
 
 ```bash
 export HOSTKIT_API_KEY="<Hostkit app → Properties → API key tab, one key per property>"
@@ -46,9 +47,6 @@ curl -s "$BASE/getKeycode?APIKEY=$HOSTKIT_API_KEY&rcode=ABC123&provider=nuki"  #
 ```
 
 Done = license object returns; properties done = list resolves visible properties first try (verified: 1 property on a scoped key); keycode done = code payload non-empty for a known `rcode`, or exact `{"error":"keycode not found"}` when no lock is fitted (verified on an Airbnb booking). Take `rcode` from `getReservations` output; never invent codes (`unknown reservation` otherwise — verified).
-<!-- WRITE-BEGIN -->
-Writes [TBC, opt-in each]: `addProperty` (req `property_name,address,zip,city`, returns NEW key — store it), `updateProperty`.
-<!-- WRITE-END -->
 
 ## Reservations
 
@@ -61,9 +59,6 @@ curl -s "$BASE/getPayments?APIKEY=$HOSTKIT_API_KEY&rcode=ABC123"         # payme
 curl -s "$BASE/getOnlineCheckin?APIKEY=$HOSTKIT_API_KEY&rcode=ABC123"    # checkin link
 ```
 
-Done = every list carries a window; one-lookup resolves a known `rcode` first try (verified: Oct 2026 returned 5 Airbnb rows; Jul/Aug/Sep returned 0). Without `date_filter`, `from_date` filters check-in and `to_date` filters check-out; open-ended `from_date` alone works (verified: 8 rows vs 5 windowed). `reservation_date=YYYY-MM-DD` filters creation date and works standalone (verified: `[]` on no-match day). `date_filter=checkout` repins both bounds (verified: 6 vs 5 default). `get_archived=true` searches archived INSTEAD of active (verified: Oct archived 0 vs active 5; single-lookup archived miss → exact `unknown reservation`). No pagination params observed; 31-day windows return fine with no truncation signal [larger windows TBC]. `room` is free text (verified: `''` on Airbnb rows, `room=1` enforced → `[]`) — echo exact strings from list output, never invent. `getReservationByCmId` miss → exact `unknown channel manager...` error (verified: airbnb+avantio both miss on list apid — apid ≠ CM id or enum differs). `getOnlineCheckin` keys are `status,shortlink` (verified: 5/5 Oct empty). Take `rcode` from `getReservations` output; placeholder must be replaced. <!-- WRITE-BEGIN -->
-Writes [TBC, opt-in each]: `addReservation` (req `rcode,check_in,check_out` + `name` or `first+last_name`; collision behaviour TBC), `updateReservation`, `cancelReservation` (moves to cancellations) vs `deleteReservation` (permanent — never use delete as cancel). Extras: `addReservationExtra` takes `extra_id|extra_name|extra_vat|extra_type(S|I|P)|extra_total` (postman `name/value` is stale); `deleteReservationExtras?rcode=` wipes ALL extras, no single delete.
-<!-- WRITE-END -->
 
 ## Guests and SIBA
 
@@ -72,13 +67,7 @@ curl -s "$BASE/validateSIBA?APIKEY=$HOSTKIT_API_KEY&rcode=ABC123"        # readi
 curl -s "$BASE/getLastSIBADate" --get --data-urlencode "APIKEY=$HOSTKIT_API_KEY"  # no params besides key
 ```
 
-<!-- WRITE-BEGIN -->
-`addGuest` needs `rcode` + `name` (or `first+last_name`) + 9 SIBA fields: `nationality,birthday,doc_id,doc_type,doc_country,arrival,departure,country_residence,city_residence`. `removeGuest` needs `rcode` + `name` or `first+last_name`.
-<!-- WRITE-END -->
 Done = guest resolves to a listed `rcode`; SIBA done = `validateSIBA` passes before any submission is even proposed.
-<!-- WRITE-BEGIN -->
-`sendSIBA` submits externally and `removeAllGuests` wipes guest data — both opt-in each, verify-before-retry.
-<!-- WRITE-END -->
 
 ## Invoicing, receipts, credit notes, SAFT, expenses
 
@@ -91,12 +80,6 @@ curl -s "$BASE/getCreditNotes?APIKEY=$HOSTKIT_API_KEY&date_start=1756684800&date
 curl -s "$BASE/getExpenses?APIKEY=$HOSTKIT_API_KEY&date_start=1756684800&date_end=1759190400"      # document-date window, Unix
 ```
 
-<!-- WRITE-BEGIN -->
-Create is a strict 3-stage [TBC, opt-in each, verify-before-retry throughout]: 1. `addInvoice` (`customer_id` empty = final consumer; req `name,country`; opt `invoicing_nif,series,invoice_type(FR|FT),address,cp,city,rcode,comment,payment_method`) → save open-doc id. 2. `addInvoiceLine` ×N (`id,product_id,custom_descr,qty,price,discount,vat,reason_code` empty = no exemption; new product adds `region(PT|PT-MA|PT-AC),type(S|P|I)`). 3. `closeInvoice` (`id` + opt `invoicing_nif,series,invoice_type`) — final; verify customer/lines/VAT/totals via list first. `deleteInvoice` kills OPEN docs only. `addReceipt` needs a closed FT (`refseries+refid`); `addCreditNote` needs a closed invoice (defaults FR).
-<!-- WRITE-END --> Year-wide 2026 verified empty: `getReceipts`, `getCreditNotes`, `getExpenses` all `[]`; per-rcode Oct 5/5: `getReservationInvoices` and `getPayments` all `[]` — no Oct booking has invoices/payments. `getExpenses` without `date_end` → exact `missing document date end`. `getSAFT` fetches generated SAFT (miss → exact `SAF-T not found...generateSAFT first`, no payload); params `year,month` (postman) vs `invoicing_nif,year,month` (MCP) [conflict, TBC live]. SAFT done = base64 file decoded, N bytes.
-<!-- WRITE-BEGIN -->
-`generateSAFT` creates it — opt-in each, verify-before-retry.
-<!-- WRITE-END -->
 
 ## Gotchas
 

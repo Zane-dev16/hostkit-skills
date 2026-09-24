@@ -3,6 +3,7 @@ name: hostkit
 description: "Work with the Hostkit API. Use for any Hostkit call: auth, properties, keycodes, reservations, guests, SIBA, invoices, receipts, credit notes, SAFT, expenses."
 license: MIT
 ---
+> Full-access build: reads run freely; writes (reservations, guests, SIBA sends, invoicing) require explicit approval each time.
 
 # Hostkit
 
