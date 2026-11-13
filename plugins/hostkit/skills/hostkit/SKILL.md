@@ -41,7 +41,8 @@ included, so the HTTP method is not a boundary. The endpoint name is.
 bash scripts/hk.sh <endpoint> [param=value | YYYY-MM-DD]...   [--fields=a,b] [--json]
 ```
 
-The `skill_dir` in `skill_view` output is the directory that holds `scripts/`.
+The `skill_dir` in `skill_view` output is the directory that holds `scripts/`. Run the CLI with
+`bash`: a hub install writes the file without the executable bit.
 
 - `param=value` — a query parameter. The CLI URL-encodes the value; never pre-encode it.
 - `YYYY-MM-DD` — a bare date is window shorthand: the first is the start, the second the end.
