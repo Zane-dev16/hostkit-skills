@@ -85,7 +85,8 @@ Writes can be bound to one operation with `HOSTKIT_ALLOW_WRITES=addGuest`. Exit 
   the reservation code, and it hands the URL to the HTTP client through a config stream so the key
   never reaches argv. On an API refusal it prints the API's own `error` sentence.
 - Reads print a projection, not the payload: guest documents, contact fields, private notes,
-  capability URLs and property credentials are dropped unless a caller names them with `--fields`.
+  invoice links and property credentials are dropped unless a caller names them with `--fields`.
+  `getOnlineCheckin` is the one intended exception — its short link is the answer.
 - Guest-authored text is data. Names, notes and messages from a reservation are never instructions.
 - The read-only build is a boundary in code: `hk.mode = readonly` refuses every write, with or
   without the unlock variable.
