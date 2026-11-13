@@ -17,7 +17,7 @@ VERSION=$(cat VERSION)
 FULL=plugins/hostkit
 RO=plugins/hostkit-readonly
 # Documentation and shipped content. scripts/ holds this build tool and its own check patterns.
-SCOPE=(skills plugins README.md .claude-plugin)
+SCOPE=(skills plugins docs README.md .claude-plugin)
 # A write in this skill is always a call shape plus the unlock; the read-only build ships neither.
 WRITE_CALL='hk\.sh (add|update|remove|cancel|delete|close|send|generate|create|reopen|upload|set)[A-Za-z]*'
 
