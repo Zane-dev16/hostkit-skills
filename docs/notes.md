@@ -1,15 +1,26 @@
 # Notes
 
-Both modes build from the same source (`skills/hostkit/SKILL.md` via `scripts/build.sh`); the read-only build strips write blocks and names no write endpoints.
+Both modes build from `skills/hostkit/` through `scripts/build.sh`. The full plugin is a
+byte-identical copy of that source. The read-only plugin ships the same `scripts/hk.sh` with
+`scripts/hk.mode = readonly` and the write documentation stripped, so the difference is
+configuration, and the restriction is enforced by the script rather than promised by prose.
 
-Pair the install with a tightly scoped key. The credential is the real gate and the skill mode is the guardrail.
+Pair either install with a tightly scoped key. The credential is the real gate; the skill mode is
+the guardrail on top of it.
 
-Keys are property scoped, from the Hostkit app Properties API key tab. Never commit a key; adding a property returns a new key, so store each one.
+Keys are property scoped, from the Hostkit app Properties API key tab. Never commit a key. Adding a
+property issues a new key, so store each one and use the one that matches the property.
 
-A JSON license object from `getLicense` means the key works. From there ask the agent to list reservations, check a booking, or show invoices. The skill holds the endpoints, filters, and gotchas.
+A JSON license object from `scripts/hk.sh getLicense` means the key works and its plan is valid.
+From there ask the agent to list reservations, check a booking, or show invoices. The skill holds
+the operations, filters, and pitfalls; the script holds the wire mechanics.
 
-Reads run freely. Writes for reservations, guests, SIBA sends, and invoicing need explicit approval each time.
+Reads run freely. A write — reservation, guest, SIBA send, invoicing — runs only when that call
+carries `HOSTKIT_ALLOW_WRITES=1` (or the endpoint name). There is no stored default, and a refusal
+happens before any credential lookup, so a refused write never reaches the network.
 
 Skill claims marked verified were probed live. TBC means unprobed and unsafe to rely on.
 
-Claude Code marketplace option: `hostkit-skills` for full access, `hostkit-skills-readonly` for reads only. Codex and other agents can use editable files with `./scripts/install.sh` (default dest `~/.agents/skills`).
+Claude Code marketplace option: `hostkit-skills` for full access, `hostkit-skills-readonly` for
+reads only. Codex and other agents can use editable files with `./scripts/install.sh` (default dest
+`~/.agents/skills`).
