@@ -204,7 +204,7 @@ HOSTKIT_ALLOW_WRITES=1 bash scripts/hk.sh cancelReservation rcode=<rcode>
 HOSTKIT_ALLOW_WRITES=1 bash scripts/hk.sh deleteReservation rcode=<rcode>
 HOSTKIT_ALLOW_WRITES=1 bash scripts/hk.sh addReservationExtra rcode=<rcode> extra_name=<name> extra_vat=<vat> extra_type=S extra_total=<amount>
 HOSTKIT_ALLOW_WRITES=1 bash scripts/hk.sh deleteReservationExtras rcode=<rcode>
-HOSTKIT_ALLOW_WRITES=1 bash scripts/hk.sh addGuest rcode=<rcode> first_name=<first> last_name=<last> nationality=<ICAO> birthday=<YYYY-MM-DD> doc_id=<id> doc_type=P doc_country=<ICAO> arrival=<YYYY-MM-DD> departure=<YYYY-MM-DD> country_residence=<ICAO> city_residence=<city>
+HOSTKIT_ALLOW_WRITES=1 bash scripts/hk.sh addGuest rcode=<rcode> name=<guest> nationality=<ICAO> birthday=<YYYY-MM-DD> doc_id=<id> doc_type=P doc_country=<ICAO> arrival=<YYYY-MM-DD> departure=<YYYY-MM-DD> country_residence=<ICAO> city_residence=<city>
 HOSTKIT_ALLOW_WRITES=1 bash scripts/hk.sh removeGuest rcode=<rcode> name=<guest>
 HOSTKIT_ALLOW_WRITES=1 bash scripts/hk.sh sendSIBA rcode=<rcode>
 HOSTKIT_ALLOW_WRITES=1 bash scripts/hk.sh removeAllGuests rcode=<rcode>
